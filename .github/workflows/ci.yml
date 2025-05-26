@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ '3.8', '3.9', '3.10', '3.11', '3.12', '3.13' ]
+    name: Python ${{ matrix.python-version }}
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dev dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    - name: install with pip -e
+      if: ${{ matrix.python-version == 3.12 || matrix.python-version == 3.13 }} 
+      run: |
+        pip install -e . -v --no-build-isolation
+    - name: install with setup.py develop
+      if: ${{ matrix.python-version != 3.12 && matrix.python-version != 3.13 }} 
+      run: |
+        python setup.py develop
+    - name: Lint with flake8
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --max-line-length=80 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --statistics
+   #- name: Tests
+   #  run: |
+   #    make test
+#   - name: Coverage
+#     if: ${{ matrix.python-version == 3.8 }}
+#     run: |
+#       make coverage
+#   - name: Publish coverage
+#     if: ${{ matrix.python-version == 3.8 }}
+#     uses: thebaptiste/ssh-scp-ssh-pipelines@metwork
+#     env:
+#       LOCAL: htmlcov
+#       REMOTE: /pub/misc/acquisition/coverage
+#     with:
+#       host: ${{ secrets.PUB_HOST }}
+#       user: ${{ secrets.PUB_USERNAME }}
+#       pass: ${{ secrets.PUB_PASSWORD }}
+#       port: 22
+#       first_ssh: |
+#         rm -Rf ${REMOTE}
+#         mkdir -p ${REMOTE}
+#       scp: |
+#           '${LOCAL}/*' => ${REMOTE}
